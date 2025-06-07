@@ -15,17 +15,14 @@ import android.widget.ImageView;
 
 import com.facebook.react.views.image.ReactImageView;
 import com.facebook.react.views.view.ReactViewGroup;
-import com.facebook.react.uimanager.BackgroundStyleApplicator;
-import com.facebook.react.uimanager.ThemedReactContext;
-import com.facebook.react.uimanager.LengthPercentage;
-import com.facebook.react.uimanager.LengthPercentageType;
-import com.facebook.react.uimanager.style.BorderRadiusProp;
-import com.facebook.react.uimanager.style.LogicalEdge;
-import com.facebook.react.uimanager.style.BorderStyle;
 
 import com.facebook.drawee.generic.GenericDraweeHierarchy;
 import com.facebook.drawee.drawable.ScalingUtils.ScaleType;
 import com.facebook.drawee.generic.RoundingParams;
+// import com.facebook.react.views.view.ReactViewBackgroundDrawable; // Remove this line
+
+// Add the import statement for the custom drawable class
+import com.ijzerenhein.sharedelement.CustomBackgroundDrawable;
 
 class RNSharedElementDrawable extends Drawable {
   enum ViewType {
@@ -48,19 +45,14 @@ class RNSharedElementDrawable extends Drawable {
 
   // static final private String LOG_TAG = "RNSharedElementDrawable";
 
-  private ThemedReactContext mContext = null;
-  private View mView = null;
   private RNSharedElementContent mContent = null;
   private RNSharedElementStyle mStyle = null;
   private ViewType mViewType = ViewType.NONE;
   private float mPosition = 0;
   private int mAlpha = 255;
   private Path mPathForBorderRadiusOutline = null;
-
-  public RNSharedElementDrawable(ThemedReactContext context) {
-    mContext = context;
-    mView = new View(context);
-  }
+  // private ReactViewBackgroundDrawable mReactViewBackgroundDrawableCache = null;
+  private CustomBackgroundDrawable mCustomBackgroundDrawableCache = null; // Use custom drawable class
 
   RNSharedElementStyle getStyle() {
     return mStyle;
@@ -307,21 +299,33 @@ class RNSharedElementDrawable extends Drawable {
   private void drawPlainView(Canvas canvas) {
     RNSharedElementStyle style = mStyle;
 
-    // Update background color
-    BackgroundStyleApplicator.setBackgroundColor(mView, style.backgroundColor);
+    // Create drawable
+    // ReactViewBackgroundDrawable drawable = mReactViewBackgroundDrawableCache;
+    CustomBackgroundDrawable drawable = mCustomBackgroundDrawableCache; // Use custom drawable class
+    if (drawable == null) {
+      // drawable = new ReactViewBackgroundDrawable(mContent.view.getContext());
+      drawable = new CustomBackgroundDrawable(mContent.view.getContext()); // Use custom drawable class
+      mCustomBackgroundDrawableCache = drawable;
+    }
+    drawable.setBounds(getBounds());
 
-    // Update border
-    BackgroundStyleApplicator.setBorderStyle(mView, BorderStyle.fromString(style.borderStyle));
-    BackgroundStyleApplicator.setBorderColor(mView, LogicalEdge.ALL, style.borderColor);
-    BackgroundStyleApplicator.setBorderWidth(mView, LogicalEdge.ALL, style.borderWidth / 2f);
-    BackgroundStyleApplicator.setBorderRadius(mView, BorderRadiusProp.BORDER_TOP_LEFT_RADIUS, new LengthPercentage(style.borderTopLeftRadius, LengthPercentageType.POINT));
-    BackgroundStyleApplicator.setBorderRadius(mView, BorderRadiusProp.BORDER_TOP_RIGHT_RADIUS, new LengthPercentage(style.borderTopRightRadius, LengthPercentageType.POINT));
-    BackgroundStyleApplicator.setBorderRadius(mView, BorderRadiusProp.BORDER_BOTTOM_RIGHT_RADIUS, new LengthPercentage(style.borderBottomRightRadius, LengthPercentageType.POINT));
-    BackgroundStyleApplicator.setBorderRadius(mView, BorderRadiusProp.BORDER_BOTTOM_LEFT_RADIUS, new LengthPercentage(style.borderBottomLeftRadius, LengthPercentageType.POINT));
+    // Set background color
+    drawable.setColor(style.backgroundColor);
+
+    // Set border
+    int borderColorRGB = style.borderColor & 0x00FFFFFF; // Convert to int
+    int borderColorAlpha = style.borderColor >>> 24; // Convert to int
+    drawable.setBorderStyle(style.borderStyle);
+    for (int i = 0; i < 4; i++) {
+      drawable.setBorderColor(borderColorRGB); // Use int instead of float
+      drawable.setBorderWidth(i, style.borderWidth);
+    }
+    drawable.setRadius(style.borderTopLeftRadius);
+    drawable.setRadius(style.borderTopRightRadius);
+    drawable.setRadius(style.borderBottomRightRadius);
+    drawable.setRadius(style.borderBottomLeftRadius);
 
     // Draw!
-    Drawable drawable = mView.getBackground();
-    drawable.setBounds(getBounds());
     drawable.draw(canvas);
   }
 
